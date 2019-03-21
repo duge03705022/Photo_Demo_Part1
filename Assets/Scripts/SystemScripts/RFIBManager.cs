@@ -14,7 +14,7 @@ public class RFIBManager : MonoBehaviour
     public BlockController blockController;
 
     #region RFIB parameter
-    readonly short[] EnableAntenna = {1, 2, 3, 4};       // reader port
+    readonly short[] EnableAntenna = { 1, 2, 3, 4 };     // reader port
     readonly string ReaderIP = "192.168.1.96";           // 到時再說
     readonly double ReaderPower = 32, Sensitive = -70;   // 功率, 敏感度
     readonly bool Flag_ToConnectTheReade = false;        // false就不會連reader

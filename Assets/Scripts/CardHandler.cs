@@ -5,18 +5,12 @@ using UnityEngine;
 public class CardHandler : MonoBehaviour
 {
     public RFIBManager rFIBManager;
-    public GameController gameController;
-
-    //待改善
-    //public LevelControllerStage1 levelControllerStage1;
 
     #region Card Parameter
-    public GameObject fileParentTransform;
     public GameObject[] file;
 
-    private GameObject[,] cardInstance;
+    public GameObject[,] cardInstance;
     private string[,] lastBlockId;
-    private bool[,] hasPlaced;
 
     # endregion
 
@@ -24,18 +18,14 @@ public class CardHandler : MonoBehaviour
     void Start()
     {
         cardInstance = new GameObject[RFIBParameter.stageCol, RFIBParameter.stageRow];
-        hasPlaced = new bool[RFIBParameter.stageCol, RFIBParameter.stageRow];
         lastBlockId = new string[RFIBParameter.stageCol, RFIBParameter.stageRow];
 
         for (int i = 0; i < RFIBParameter.stageCol; i++)
         {
             for (int j = 0; j < RFIBParameter.stageRow; j++)
             {
-                for (int k = 0; k < RFIBParameter.maxHight; k++)
-                {
-                    hasPlaced[i, j] = false;
-                    lastBlockId[i, j] = "0000";
-                }
+                lastBlockId[i, j] = "0000";
+                Debug.Log("AAA");
             }
         }
     }
@@ -60,7 +50,7 @@ public class CardHandler : MonoBehaviour
                     }
                     else
                     {
-                        DestroyCard(i, j);
+                        RemoveCard(i, j);
                     }
 
                     lastBlockId[i, j] = rFIBManager.blockId[i, j, 0];
@@ -77,14 +67,19 @@ public class CardHandler : MonoBehaviour
             x * GameParameter.stageGap,
             y * GameParameter.stageGap,
             0);
-
-        hasPlaced[x, y] = true;
     }
 
-    private void DestroyCard(int x, int y)
+    private void RemoveCard(int x, int y)
     {
-        Destroy(cardInstance[x, y]);
+        cardInstance[x, y].SetActive(false);
         cardInstance[x, y] = null;
-        hasPlaced[x, y] = false;
+    }
+
+    public bool IfFile(int x, int y)
+    {
+        if (cardInstance[x, y] != null)
+            return true;
+        else
+            return false;
     }
 }

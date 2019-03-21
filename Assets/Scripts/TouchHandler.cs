@@ -6,33 +6,35 @@ using System;
 public class TouchHandler : MonoBehaviour
 {
     public RFIBManager rFIBManager;
+    public CardHandler cardHandler;
     public GameController gameController;
-    public FileController fileController;
+    //public FileController fileController;
 
-    # region Touch Parameter
+    # region Touch Parameters
     private bool ifTouch;
-    private int touchCount;
     private int touchTime;
     private int notTouchTime;
-    private int nowTouchX;
-    private int nowTouchY;
-    private int[] touchPosX;
-    private int[] touchPosY;
 
-    public GameObject[] selectPrefab;
+    private Tuple<int, int> nowTouch;
+    private Tuple<int, int> lastTouch;
+
+    private string touchAction;
+
+    private int clickCount;
+
+    private Tuple<int, int>[] touchHistory;
+    private int touchHistoryCount;
+    private string swipeDirection;
+
     public GameObject selectParent;
-    private int selectCount;
+    public GameObject[] selectPrefab;
     public GameObject[] selectInstances;
+    private int selectCount;
 
-    private int[] sourcePosX;
-    private int[] sourcePosY;
-    private int targetPosX;
-    private int targetPosY;
+    private Tuple<int, int>[] selectPos;
+    private Tuple<int, int> targetPos;
 
-    private bool startProcess;
-
-    private GameObject[] copyInstances;
-    public GameObject copyParent;
+    public Tuple<bool, int, int> ifHold;
 
     # endregion
 
@@ -40,198 +42,351 @@ public class TouchHandler : MonoBehaviour
     void Start()
     {
         ifTouch = false;
-        touchCount = 0;
         touchTime = 0;
         notTouchTime = 0;
-        nowTouchX = -1;
-        nowTouchY = -1;
-        touchPosX = new int[RFIBParameter.maxTouch];
-        touchPosY = new int[RFIBParameter.maxTouch];
-        ResetTouchPos();
 
-        sourcePosX = new int[RFIBParameter.maxTouch];
-        sourcePosY = new int[RFIBParameter.maxTouch];
+        nowTouch = Tuple.Create(-1, -1);
+        lastTouch = Tuple.Create(-1, -1);
+
+        touchAction = "Idle";
+
+        clickCount = 0;
+
+        touchHistory = new Tuple<int, int>[RFIBParameter.maxTouch];
+        touchHistoryCount = 0;
+        swipeDirection = "None";
+
         selectCount = 0;
+        selectPos = new Tuple<int, int>[RFIBParameter.maxTouch];
         selectInstances = new GameObject[RFIBParameter.maxTouch];
-        ResetSelect();
+        targetPos = Tuple.Create(-1, -1);
 
-        copyInstances = new GameObject[RFIBParameter.maxTouch];
+        ifHold = Tuple.Create(false, -1, -1);
     }
-    
+
     // Update is called once per frame
     void Update()
     {
         SenseTouch();
-
-        //Debug.Log(string.Format("[{0}, {1}] ({2}, {3}) - {4} {5} {6} - {7})",
-        //    nowTouchX.ToString(),
-        //    nowTouchY.ToString(),
-        //    (nowTouchX / 3),
-        //    (nowTouchY / 3),
-        //    ifTouch.ToString(),
-        //    touchTime,
-        //    notTouchTime,
-        //    touchCount));
-
-        if (startProcess)
-        {
-            StartCoroutine(CopyPhoto());
-            startProcess = false;
-        }
-
+        DoAction();
         KeyPressed();
+
+        // Debug msg
+        bool ifDebug = false;
+        if (ifDebug)
+        {
+            Debug.Log(string.Format("touchTime:{0} notTouchTime:{1} - {2}({4}) - clickCount:{3}", touchTime, notTouchTime, touchAction, clickCount, swipeDirection));
+
+            string str = "Position history: ";
+            for (int i = 0; i < touchHistoryCount; i++)
+            {
+                str += string.Format("({0}, {1}) ", touchHistory[i].Item1, touchHistory[i].Item2);
+            }
+            if (touchHistoryCount != 0)
+            {
+                Debug.Log(str);
+            }
+        }
     }
 
     private void SenseTouch()
     {
+        ifTouch = false;
+        nowTouch = Tuple.Create(-1, -1);
+        // Find touching position (*Guarantee one touch per frame)
         for (int i = 0; i < RFIBParameter.touchCol; i++)
         {
             for (int j = 0; j < RFIBParameter.touchRow; j++)
             {
-                if (rFIBManager.touchBlock[i, j] && nowTouchX == -1 && nowTouchY == -1)
+                if (rFIBManager.touchBlock[i, j])
                 {
-                    nowTouchX = i;
-                    nowTouchY = j;
                     ifTouch = true;
-
-                    touchPosX[touchCount] = nowTouchX;
-                    touchPosY[touchCount] = nowTouchY;
-                    touchCount++;
-                    notTouchTime = 0;
-                    SetSelect(i / 3, j / 3);
-                }
-                else if (!rFIBManager.touchBlock[i, j] && ifTouch && i == nowTouchX && j == nowTouchY)
-                {
-                    nowTouchX = -1;
-                    nowTouchY = -1;
-                    ifTouch = false;
-                    touchTime = 0;
+                    nowTouch = Tuple.Create(i, j);
                 }
             }
         }
 
+        // Touch calculating
         if (ifTouch)
         {
+            if (touchTime == 0 || !nowTouch.Equals(lastTouch))
+            {
+                if (!nowTouch.Equals(lastTouch))
+                {
+                    clickCount = 0;
+                }
+
+                clickCount++;
+
+                touchAction = "ClickAgain";
+                touchHistory[touchHistoryCount] = Tuple.Create(nowTouch.Item1, nowTouch.Item2);
+                touchHistoryCount++;
+            }
+
             touchTime++;
+            notTouchTime = 0;
+            lastTouch = Tuple.Create(nowTouch.Item1, nowTouch.Item2);
         }
         else
         {
+            touchTime = 0;
             notTouchTime++;
         }
 
-        if (notTouchTime > RFIBParameter.notTouchGap)
-        {
-            //string str = "";
-            //for (int i = 0; i < touchCount; i++)
-            //{
-            //    str += string.Format("({0} {1}) ", touchPosX[i], touchPosY[i]);
-            //}
-            //if (touchCount != 0)
-            //{
-            //    Debug.Log(str);
-            //}
+        // Identify the touch action
+        IdentifyAction();
+    }
 
-            ResetTouchPos();
-            touchCount = 0;
+    private void ResetTouch()
+    {
+        touchHistory = new Tuple<int, int>[RFIBParameter.maxTouch];
+        clickCount = 0;
+        touchHistoryCount = 0;
+        swipeDirection = "None";
+        lastTouch = Tuple.Create(-1, -1);
+    }
+
+    private void DoAction()
+    {
+        switch (touchAction)
+        {
+            case "Click":
+                Click(touchHistory[touchHistoryCount - 1].Item1, touchHistory[touchHistoryCount - 1].Item2);
+                break;
+            case "DoubleClick":
+                DoubleClick(touchHistory[touchHistoryCount - 1].Item1, touchHistory[touchHistoryCount - 1].Item2);
+                break;
+            case "Hold":
+                Hold(touchHistory[touchHistoryCount - 1].Item1, touchHistory[touchHistoryCount - 1].Item2);
+                break;
+            case "Swipe":
+                Swipe(swipeDirection, touchHistory[touchHistoryCount - 3].Item1, touchHistory[touchHistoryCount - 3].Item2);
+                break;
+            case "Idle":
+                Idle();
+                break;
         }
     }
 
-    private void SetSelect(int x, int y)
+    private void Click(int x, int y)
     {
-        if (touchCount == 1)
+        if (ifHold.Item1)
         {
-            selectInstances[selectCount] = Instantiate(selectPrefab[0], selectParent.transform);
-            selectInstances[selectCount].transform.localPosition = new Vector3(
-                x * GameParameter.stageGap,
-                y * GameParameter.stageGap,
-                0);
-
-            sourcePosX[selectCount] = x;
-            sourcePosY[selectCount] = y;
-            selectCount++;
         }
-        else if (touchCount == 2 && touchPosX[0] == touchPosX[1] && touchPosY[0] == touchPosY[1])
+        else if (!cardHandler.IfFile(x / 3, y / 3) || selectCount > 0)
         {
-            Destroy(selectInstances[selectCount - 1]);
-            selectInstances[selectCount - 1] = Instantiate(selectPrefab[1], selectParent.transform);
-            selectInstances[selectCount - 1].transform.localPosition = new Vector3(
-                x * GameParameter.stageGap,
-                y * GameParameter.stageGap,
-                0);
+            Select(x / 3, y / 3);
+        }
+        else
+        {
+            SelectPhotoInFile(x, y);
+        }
 
-            targetPosX = x;
-            targetPosY = y;
+        touchAction = "ClickDone";
+    }
 
-            startProcess = true;
+    private void DoubleClick(int x, int y)
+    {
+        Debug.Log(string.Format("DoubleClick ({0}, {1})", x / 3, y / 3));
+
+        SetTarget(x / 3, y / 3);
+
+        if (cardHandler.IfFile(x / 3, y / 3) && selectCount > 0)
+        {
+            StartCoroutine(gameController.CopyPhoto(selectCount, selectPos, targetPos));
+        }
+        else
+        {
+            StartCoroutine(ResetSelect(0.5f));
+        }
+
+        touchAction = "DoubleClickDone";
+    }
+
+    private void Hold(int x, int y)
+    {
+        Debug.Log(string.Format("Hold ({0}, {1})", x / 3, y / 3));
+
+        if (cardHandler.IfFile(x / 3, y / 3))
+        {
+            cardHandler.cardInstance[x / 3, y / 3].GetComponent<FileController>().ShowAllPhoto();
+            ifHold = Tuple.Create(true, x / 3, y / 3);
+        }
+
+        touchAction = "HoldDone";
+    }
+
+    private void Swipe(string direction, int x, int y)
+    {
+        Debug.Log(string.Format("Swipe {0} ({1}, {2})", direction, x, y));
+        StartCoroutine(ResetSelect(0.1f));
+
+        if (cardHandler.IfFile(x / 3, y / 3))
+        {
+            StartCoroutine(cardHandler.cardInstance[x / 3, y / 3].GetComponent<FileController>().SwipePage(ifHold.Item1, direction));
+            ifHold = Tuple.Create(false, -1, -1);
+        }
+
+        touchAction = "SwipeDone";
+    }
+
+    private void Idle()
+    {
+        if (ifHold.Item1)
+        {
+            cardHandler.cardInstance[ifHold.Item2, ifHold.Item3].GetComponent<FileController>().HideOtherPhoto();
+            ifHold = Tuple.Create(false, -1, -1);
+        }
+
+        touchAction = "IdleDone";
+    }
+
+    private void Select(int x, int y)
+    {
+        Debug.Log(string.Format("Select ({0}, {1})", x, y));
+
+        selectInstances[selectCount] = Instantiate(selectPrefab[0], selectParent.transform);
+        selectInstances[selectCount].transform.localPosition = new Vector3(
+            x * GameParameter.stageGap,
+            y * GameParameter.stageGap,
+            0);
+
+        selectPos[selectCount] = Tuple.Create(x, y);
+        selectCount++;
+    }
+
+    private void SelectPhotoInFile(int x, int y)
+    {
+        Debug.Log(string.Format("SelectPhoto ({0}, {1}) [{2}, {3}]", x / 3, y / 3, x % 3, y % 3));
+        cardHandler.cardInstance[x / 3, y / 3].GetComponent<FileController>().SelectPhoto(x % 3, y % 3);
+    }
+
+    private void SetTarget(int x, int y)
+    {
+        if (selectCount > 0)
+        {
+            selectCount--;
+            Destroy(selectInstances[selectCount]);
+        }
+        selectInstances[selectCount] = Instantiate(selectPrefab[1], selectParent.transform);
+        selectInstances[selectCount].transform.localPosition = new Vector3(
+            x * GameParameter.stageGap,
+            y * GameParameter.stageGap,
+            0);
+
+        targetPos = Tuple.Create(x, y);
+    }
+
+    private void IdentifyAction()
+    {
+        // Click
+        if (clickCount == 1 && touchAction != "ClickDone")
+        {
+            touchAction = "Click";
+        }
+        // DoubleClick
+        if (clickCount == 2 && touchAction != "DoubleClickDone")
+        {
+            touchAction = "DoubleClick";
+        }
+        // Hold
+        if (touchTime >= 30 && touchAction != "HoldDone" && touchAction != "SwipeDone")
+        {
+            touchAction = "Hold";
+            clickCount = 0;
+        }
+        // Swipe
+        if (touchHistoryCount >= 3 && touchAction != "SwipeDone")
+        {
+            if (touchHistory[2].Item1 > touchHistory[1].Item1 &&
+                touchHistory[1].Item1 > touchHistory[0].Item1 &&
+                touchHistory[2].Item2 == touchHistory[1].Item2 &&
+                touchHistory[1].Item2 == touchHistory[0].Item2)
+            {
+                touchAction = "Swipe";
+                swipeDirection = "Left";
+                clickCount = 0;
+            }
+            else if (touchHistory[2].Item1 == touchHistory[1].Item1 &&
+                touchHistory[1].Item1 == touchHistory[0].Item1 &&
+                touchHistory[2].Item2 > touchHistory[1].Item2 &&
+                touchHistory[1].Item2 > touchHistory[0].Item2)
+            {
+                touchAction = "Swipe";
+                swipeDirection = "Up";
+                clickCount = 0;
+            }
+            else if (touchHistory[2].Item1 < touchHistory[1].Item1 &&
+                touchHistory[1].Item1 < touchHistory[0].Item1 &&
+                touchHistory[2].Item2 == touchHistory[1].Item2 &&
+                touchHistory[1].Item2 == touchHistory[0].Item2)
+            {
+                touchAction = "Swipe";
+                swipeDirection = "Right";
+                clickCount = 0;
+            }
+            else if (touchHistory[2].Item1 == touchHistory[1].Item1 &&
+                touchHistory[1].Item1 == touchHistory[0].Item1 &&
+                touchHistory[2].Item2 < touchHistory[1].Item2 &&
+                touchHistory[1].Item2 < touchHistory[0].Item2)
+            {
+                touchAction = "Swipe";
+                swipeDirection = "Down";
+                clickCount = 0;
+            }
+        }
+        // Idle
+        if (notTouchTime >= 40 && touchAction != "IdleDone")
+        {
+            touchAction = "Idle";
+            ResetTouch();
         }
     }
 
-    private void ResetTouchPos()
+    public IEnumerator ResetSelect(float waitTime)
     {
-        for (int i = 0; i < RFIBParameter.maxTouch; i++)
-        {
-            touchPosX[i] = -1;
-            touchPosY[i] = -1;
-        }
-    }
+        yield return new WaitForSeconds(waitTime);
 
-    public void ResetSelect()
-    {
-        for (int i = 0; i < selectCount; i++)
+        for (int i = 0; i < selectCount + 1; i++)
         {
-            sourcePosX[i] = -1;
-            sourcePosY[i] = -1;
-
             Destroy(selectInstances[i]);
+            selectInstances[i] = null;
         }
 
-        targetPosX = -1;
-        targetPosY = -1;
+        selectPos = new Tuple<int, int>[RFIBParameter.maxTouch];
+        targetPos = Tuple.Create(-1, -1);
 
         selectCount = 0;
-        startProcess = false;
     }
 
-    IEnumerator CopyPhoto()
-    {
-        for (int i = 0; i < selectCount - 1; i++)
-        {
-            copyInstances[i] = Instantiate(gameController.photoSeries[sourcePosX[i] * RFIBParameter.stageRow + sourcePosY[i]], copyParent.transform);
-            copyInstances[i].transform.localPosition = new Vector3(
-                    sourcePosX[i] * GameParameter.stageGap,
-                    sourcePosY[i] * GameParameter.stageGap,
-                    0);
-            copyInstances[i].GetComponent<SpriteRenderer>().sortingOrder = 40;
-            StartCoroutine(MovePhoto(i, sourcePosX[i], sourcePosY[i], targetPosX, targetPosY));
-            yield return new WaitForSeconds(0.5f);
-        }
 
-        //
-        yield return new WaitForSeconds(GameParameter.moveTime + 0.2f);
-        ResetSelect();
-    }
-
-    IEnumerator MovePhoto(int instanceId, int fromX, int fromY, int toX, int toY)
-    {
-        for (int i = 0; i < GameParameter.moveStep; i++)
-        {
-            copyInstances[instanceId].transform.localPosition += new Vector3(
-                (toX - fromX) * GameParameter.stageGap / GameParameter.moveStep,
-                (toY - fromY) * GameParameter.stageGap / GameParameter.moveStep,
-                0f);
-            copyInstances[instanceId].transform.localScale -= new Vector3(
-                0.7f / GameParameter.moveStep,
-                0.7f / GameParameter.moveStep,
-                0.7f / GameParameter.moveStep);
-            yield return new WaitForSeconds(GameParameter.moveTime / GameParameter.moveStep);
-        }
-        
-        fileController.AddPhoto(gameController.photoSeries[fromX * RFIBParameter.stageRow + fromY]);
-        Destroy(copyInstances[instanceId]);
-    }
 
     private void KeyPressed()
     {
+        if (Input.GetKey("q"))
+        {
+            rFIBManager.touchBlock[21, 8] = true;
+        }
+        else
+        {
+            rFIBManager.touchBlock[21, 8] = false;
+        }
+        if (Input.GetKey("w"))
+        {
+            rFIBManager.touchBlock[22, 8] = true;
+        }
+        else
+        {
+            rFIBManager.touchBlock[22, 8] = false;
+        }
+        if (Input.GetKey("e"))
+        {
+            rFIBManager.touchBlock[23, 8] = true;
+        }
+        else
+        {
+            rFIBManager.touchBlock[23, 8] = false;
+        }
         if (Input.GetKey("a"))
         {
             rFIBManager.touchBlock[10, 4] = true;
@@ -240,7 +395,6 @@ public class TouchHandler : MonoBehaviour
         {
             rFIBManager.touchBlock[10, 4] = false;
         }
-
         if (Input.GetKey("s"))
         {
             rFIBManager.touchBlock[13, 4] = true;
@@ -249,7 +403,6 @@ public class TouchHandler : MonoBehaviour
         {
             rFIBManager.touchBlock[13, 4] = false;
         }
-
         if (Input.GetKey("d"))
         {
             rFIBManager.touchBlock[16, 4] = true;
@@ -268,9 +421,9 @@ public class TouchHandler : MonoBehaviour
             rFIBManager.touchBlock[22, 7] = false;
         }
 
-        if (Input.GetKeyUp("z"))
-        {
-            ResetSelect();
-        }
+        //if (Input.GetKeyUp("z"))
+        //{
+        //    ResetSelect();
+        //}
     }
 }

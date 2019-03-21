@@ -15,7 +15,7 @@ public static class RFIBParameter
     public static readonly int touchRow = 15;
     public static readonly int touchCol = 27;
     public static readonly int notTouchGap = 30;
-    public static readonly int maxTouch = 10;
+    public static readonly int maxTouch = 20;
 
     // 允許甚麼編號被接受
     public static readonly string[] AllowBlockType = {
