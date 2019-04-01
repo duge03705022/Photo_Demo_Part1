@@ -171,7 +171,10 @@ public class FileController : MonoBehaviour
 
     public void SelectPhoto(int x, int y)
     {
-        photosInFile[x * 3 - y + 2 + showPage * 9].GetComponent<SpriteRenderer>().color = new Color(1f, 0f, 0f);
+        if (photoCount > x * 3 - y + 2 + showPage * 9)
+        {
+            photosInFile[x * 3 - y + 2 + showPage * 9].GetComponent<SpriteRenderer>().color = new Color(1f, 0f, 0f);
+        }
     }
 
     private void ResetSelectPhoto()

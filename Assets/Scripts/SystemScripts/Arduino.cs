@@ -9,14 +9,14 @@ using System.Linq;
 
 public class Arduino : MonoBehaviour { 
 	// Serial
-	public static HashSet<int> touchID = new HashSet<int>();
-    public static Stack<string> touchShowID = new Stack<string>();
+	public HashSet<int> touchID = new HashSet<int>();
+    public Stack<string> touchShowID = new Stack<string>();
     public string portName;
-	public int baudRate = 9600;
-	SerialPort arduinoSerial;
+	public int baudRate;
+	public SerialPort arduinoSerial;
 	public string[] a;
-
 	public int sensor;
+    public int count;
 
 	void Start () {
 		// Open Serial port
@@ -29,35 +29,41 @@ public class Arduino : MonoBehaviour {
 		arduinoSerial.Parity = Parity.None;
 		arduinoSerial.StopBits = StopBits.One;
 		arduinoSerial.DtrEnable = true;
-		arduinoSerial.RtsEnable = true;;
+		arduinoSerial.RtsEnable = true;
 		arduinoSerial.Open ();
-	}
+        count = 0;
+    }
 
 	void Update() {
-		ReadFromArduino ();
-	}
+        if (portName=="COM12")
+        {
+            count++;
+            if (count == 10)
+            {
+                arduinoSerial.Write("6");
+            }
+            else if (count % 200 == 0)
+            {
+                arduinoSerial.Write("1");
+            }
+            else if (count % 200 == 100)
+            {
+                arduinoSerial.Write("2");
+            }
+            else if (count > 11)
+            {
+                count--;
+            }
+        }
+        else
+        {
+            ReadFromArduino();
+        }
+    }
 
 	public void ReadFromArduino () {
 		string str = null;
-
-		//int num;
-        /*
-        try {
-			str = arduinoSerial.ReadLine();
-			if(str.Length>=3){
-				a = str.Split(',');
- 				print(str);
-				num = int.Parse(a[1]);
-				if(a[0] == "T"){	
-					touchID.Add(num);
-				}else if(a[0] == "F"){
-					touchID.Remove(num);
-				}
-			}
-		}
-		catch (TimeoutException e) {
-		}
-        */
+        
         try
         {
             str = arduinoSerial.ReadLine();

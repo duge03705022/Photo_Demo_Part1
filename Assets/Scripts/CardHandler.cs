@@ -25,7 +25,6 @@ public class CardHandler : MonoBehaviour
             for (int j = 0; j < RFIBParameter.stageRow; j++)
             {
                 lastBlockId[i, j] = "0000";
-                Debug.Log("AAA");
             }
         }
     }

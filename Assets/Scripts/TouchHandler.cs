@@ -8,7 +8,6 @@ public class TouchHandler : MonoBehaviour
     public RFIBManager rFIBManager;
     public CardHandler cardHandler;
     public GameController gameController;
-    //public FileController fileController;
 
     # region Touch Parameters
     private bool ifTouch;
@@ -69,7 +68,7 @@ public class TouchHandler : MonoBehaviour
     {
         SenseTouch();
         DoAction();
-        KeyPressed();
+        //KeyPressed();
 
         // Debug msg
         bool ifDebug = false;
@@ -359,8 +358,6 @@ public class TouchHandler : MonoBehaviour
         selectCount = 0;
     }
 
-
-
     private void KeyPressed()
     {
         if (Input.GetKey("q"))
@@ -420,10 +417,5 @@ public class TouchHandler : MonoBehaviour
         {
             rFIBManager.touchBlock[22, 7] = false;
         }
-
-        //if (Input.GetKeyUp("z"))
-        //{
-        //    ResetSelect();
-        //}
     }
 }
