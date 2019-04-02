@@ -8,26 +8,57 @@ using System.IO;
 
 public class BlockController : MonoBehaviour
 {
+    [Header("Show Param")]
     public GameObject parentCanvas;
     public GameObject blockPrefeb;
     public bool showOnBoard;
-    public bool testVersion;
-    public bool baseLineVersion;
+    public float boardRotate;
+    public bool boardMirror;
+    public float chartBarSize;
+    public float blockSize;
+
+    [Header("Changeable Param")]
+    public float threshold;
+    public int sampleTimes;
+    public bool isBaseline;
     public int blockSeriesRow;
     public int blockSeriesCol;
-    public float blockSize;
+
+    [Header("Unchangeable Param")]
     public int touchedColBlock;
     public int touchedRowBlock;
-    public float threshold;
     public string[] arduinoData;
-    private string[] lastArduinoData;
-    private float[] rowData;
-    private float[] colData;
-    public float chartBarSize;
     //public int baseDataStart;
     //public int baseDataTimes;
     //public int dataTimes;
 
+    //Test Version public param
+    [Header("Test Param")]
+    public bool testVersion;
+    public int testSampleTimes;
+    public int testingRow;
+    public int testingCol;
+    [Range(0, 100)] public int testTimes;
+    public int testMaxTimes;
+    public bool touchXMode;
+    public bool touchXComplementMode;
+    public bool Layer2ComplementMode;
+    public bool Layer1ComplementMode;
+    public bool Layer0ComplementMode;
+    public int greenDelayTimes;
+    public int yellowDelayTimes;
+    public AudioClip[] audios;
+
+    [Header("Test Information")]
+    public int[] testCorrectTimes;
+    public int[] touchedTestRowBlock;
+    public int[] touchedTestColBlock;
+    public bool[] isTestCorrect;
+
+
+    private string[] lastArduinoData;
+    private float[] rowData;
+    private float[] colData;
     private GameObject[,] blockSeries;
     private int touchedRow, touchedCol;
     private float touchedRowData, touchedColData;
@@ -40,25 +71,17 @@ public class BlockController : MonoBehaviour
     private float[] rowSumData;
     private float[] colSumData;
     private int[] ardBaseCount;
-    //private int totalBaseCount;
-    //private bool calBaseFinish;
+    private int totalBaseCount;
+    private bool calBaseFinish;
+    private bool baseLineVersion;
 
-    [Header("Test information")]
-    [Range(0, 100)]public int testTimes;
-    public int testingRow;
-    public int testingCol;
-    public int testMaxTimes;
-    public bool touchXMode;
-    public bool touchXComplementMode;
-    public int[] testCorrectTimes;
+    //Test Version private & hidden param
     [HideInInspector] public float testThresholdBase;
     private float[] testThreshold;
-    public int greenDelayTimes;
-    public int yellowDelayTimes;
     private int delayCount;
     private int testState;
-    public float[,] rowTestData;
-    public float[,] colTestData;
+    private float[,] rowTestData;
+    private float[,] colTestData;
     private float[,] rowTimestamp;
     private float[,] colTimestamp;
     private bool allTestDataFetch;
@@ -67,13 +90,26 @@ public class BlockController : MonoBehaviour
     private float[] touchedTestRowData;
     private int[] touchedTestCol;
     private float[] touchedTestColData;
-    public int[] touchedTestRowBlock;
-    public int[] touchedTestColBlock;
-    public bool[] isTestCorrect;
-    public AudioClip[] audios;
 
     void Start()
     {
+        for (int i = 0; i < arduinoData.Length; i++)
+        {
+            if (testVersion)
+            {
+                transform.GetChild(0).GetChild(i).GetComponent<Arduino>().mode = 1;
+            }
+            else
+            {
+                transform.GetChild(0).GetChild(i).GetComponent<Arduino>().mode = 0;
+            }
+            transform.GetChild(0).GetChild(i).GetComponent<Arduino>().sampleTimes = this.sampleTimes;
+            transform.GetChild(0).GetChild(i).GetComponent<Arduino>().testSampleTimes = this.testSampleTimes;
+            transform.GetChild(0).GetChild(i).GetComponent<Arduino>().isBaseline = this.isBaseline;
+        }
+
+        baseLineVersion = false;
+
         //For test version
         rowTestData = new float[8, blockSeriesRow];
         colTestData = new float[8, blockSeriesCol];
@@ -99,7 +135,6 @@ public class BlockController : MonoBehaviour
         testTimes = 0;
         if (testVersion)
         {
-            threshold = 10000;
             showOnBoard = true;
         }
 
@@ -112,8 +147,8 @@ public class BlockController : MonoBehaviour
         thresholdR = new float[blockSeriesRow];
         thresholdC = new float[blockSeriesCol];
         ardBaseCount = new int[arduinoData.Length];
-        //totalBaseCount = 0;
-        //calBaseFinish = false;
+        totalBaseCount = 0;
+        calBaseFinish = false;
 
         lastArduinoData = new string[arduinoData.Length];
 
@@ -149,6 +184,8 @@ public class BlockController : MonoBehaviour
                     blockSeries[i, j].transform.Find("Text").GetComponent<Text>().text = "0";
                 }
             }
+
+            parentCanvas.transform.Rotate(0, 0, boardRotate, Space.Self);
             
             Vector2 tmpPos;
             for (int i = 0; i < blockSeriesCol; i++)
@@ -190,7 +227,7 @@ public class BlockController : MonoBehaviour
     {
         if (col < blockSeriesCol) col = blockSeriesCol - col - 1;
         blockSeries[row, col].GetComponent<Image>().color = c;
-        blockSeries[row, col].transform.Find("Text").GetComponent<Text>().text = t;
+        if (t != "ccc") blockSeries[row, col].transform.Find("Text").GetComponent<Text>().text = t;
     }
 
     private void fetchArduinoData(int boardNum)
@@ -358,7 +395,7 @@ public class BlockController : MonoBehaviour
 
         if (touchedRowData > threshold && touchedColData > threshold)
         {
-            touchedColBlock = 26 - touchedCol;
+            touchedColBlock = touchedCol;
             touchedRowBlock = touchedRow;
         }
         else
@@ -376,9 +413,13 @@ public class BlockController : MonoBehaviour
         {
             tmpC = Math.Max(colData[i] - baselineC[i], 0);
             updateBlock(blockSeriesRow, i, new Color(1 - tmpC / 255, 1, 1 - tmpC / 255), ((int)tmpC).ToString());
-            blockSeries[blockSeriesRow + 1, i].GetComponent<RectTransform>().sizeDelta = new Vector2(blockSize, tmpC / chartBarSize * blockSize);
-            Vector2 tmpPos = blockSeries[blockSeriesRow + 1, i].GetComponent<RectTransform>().anchoredPosition;
-            blockSeries[blockSeriesRow + 1, i].GetComponent<RectTransform>().anchoredPosition = new Vector2(tmpPos.x, tmpRowPos.y - (blockSize - (tmpC / chartBarSize * blockSize)) / 2);
+            //blockSeries[blockSeriesRow + 1, i].GetComponent<RectTransform>().sizeDelta = new Vector2(blockSize, tmpC / chartBarSize * blockSize);
+            //Vector2 tmpPos = blockSeries[blockSeriesRow + 1, i].GetComponent<RectTransform>().anchoredPosition;
+            //blockSeries[blockSeriesRow + 1, i].GetComponent<RectTransform>().anchoredPosition = new Vector2(tmpPos.x, tmpRowPos.y - (blockSize - (tmpC / chartBarSize * blockSize)) / 2);
+
+            blockSeries[blockSeriesRow + 1, blockSeriesCol - 1 - i].GetComponent<RectTransform>().sizeDelta = new Vector2(blockSize, tmpC / chartBarSize * blockSize);
+            Vector2 tmpPos = blockSeries[blockSeriesRow + 1, blockSeriesCol - 1 - i].GetComponent<RectTransform>().anchoredPosition;
+            blockSeries[blockSeriesRow + 1, blockSeriesCol - 1 - i].GetComponent<RectTransform>().anchoredPosition = new Vector2(tmpPos.x, tmpRowPos.y - (blockSize - (tmpC / chartBarSize * blockSize)) / 2);
         }
         for (int i = 0; i < blockSeriesRow; i++)
         {
@@ -403,10 +444,59 @@ public class BlockController : MonoBehaviour
         }
     }
 
+    private void updateTestBoard()
+    {
+        //Update row & col data
+        float tmpR, tmpC;
+        for (int i = 0; i < blockSeriesCol; i++)
+        {
+            tmpC = colTestData[testSampleTimes - 1, i];
+            updateBlock(blockSeriesRow, i, new Color(1 - tmpC / 255, 1, 1 - tmpC / 255), ((int)tmpC).ToString());
+            //blockSeries[blockSeriesRow + 1, i].GetComponent<RectTransform>().sizeDelta = new Vector2(blockSize, tmpC / chartBarSize * blockSize);
+            //Vector2 tmpPos = blockSeries[blockSeriesRow + 1, i].GetComponent<RectTransform>().anchoredPosition;
+            //blockSeries[blockSeriesRow + 1, i].GetComponent<RectTransform>().anchoredPosition = new Vector2(tmpPos.x, tmpRowPos.y - (blockSize - (tmpC / chartBarSize * blockSize)) / 2);
+
+            blockSeries[blockSeriesRow + 1, blockSeriesCol - 1 - i].GetComponent<RectTransform>().sizeDelta = new Vector2(blockSize, tmpC / chartBarSize * blockSize);
+            Vector2 tmpPos = blockSeries[blockSeriesRow + 1, blockSeriesCol - 1 - i].GetComponent<RectTransform>().anchoredPosition;
+            blockSeries[blockSeriesRow + 1, blockSeriesCol - 1 - i].GetComponent<RectTransform>().anchoredPosition = new Vector2(tmpPos.x, tmpRowPos.y - (blockSize - (tmpC / chartBarSize * blockSize)) / 2);
+        }
+        for (int i = 0; i < blockSeriesRow; i++)
+        {
+            tmpR = rowTestData[testSampleTimes - 1, i];
+            updateBlock(i, blockSeriesCol, new Color(1 - tmpR / 255, 1, 1 - tmpR / 255), ((int)tmpR).ToString());
+            blockSeries[i, blockSeriesCol + 1].GetComponent<RectTransform>().sizeDelta = new Vector2(tmpR / chartBarSize * blockSize, blockSize);
+            Vector2 tmpPos = blockSeries[i, blockSeriesCol + 1].GetComponent<RectTransform>().anchoredPosition;
+            blockSeries[i, blockSeriesCol + 1].GetComponent<RectTransform>().anchoredPosition = new Vector2(tmpColPos.x - (blockSize - (tmpR / chartBarSize * blockSize)) / 2, tmpPos.y);
+        }
+    }
+
     void Update()
     {
+        if (Input.GetKeyDown("k"))
+        {
+            nextTestingBlock();
+            return;
+        }
+        else if (Input.GetKeyDown("w"))
+        {
+            if (showOnBoard) {
+                parentCanvas.transform.position = 
+                    new Vector3(parentCanvas.transform.position.x, parentCanvas.transform.position.y+10, parentCanvas.transform.position.z);
+            } 
+            return;
+        }
+        else if (Input.GetKeyDown("s"))
+        {
+            if (showOnBoard)
+            {
+                parentCanvas.transform.position =
+                    new Vector3(parentCanvas.transform.position.x, parentCanvas.transform.position.y - 10, parentCanvas.transform.position.z);
+            }
+        }
+        else;
+
         //Fetch baseline data
-        if (baseLineVersion)
+            if (baseLineVersion)
         {
             //if (!calBaseFinish)
             //{
@@ -475,6 +565,7 @@ public class BlockController : MonoBehaviour
                         testCorrectTimes[i] = 0;
                     }
                 }
+                else;
                 delayCount++;
                 updateBlock(testingRow, testingCol, Color.green, delayCount.ToString());
                 for (int i = 0; i < arduinoData.Length; i++)
@@ -512,13 +603,25 @@ public class BlockController : MonoBehaviour
             else if (testState == 3)
             {
                 updateBlock(testingRow, testingCol, Color.red, "");
-                for (int i = 0; i < arduinoData.Length; i++)
-                {
-                    fetchTestArduinoData(i);
-                }
+
+                //Do it in updateArduinoData()
+                //for (int i = 0; i < arduinoData.Length; i++)
+                //{
+                //    fetchTestArduinoData(i);
+                //}
 
                 //Check if all data fetched
                 allTestDataFetch = true;
+
+                ////Only for 5*4 testing
+                //for (int i = 0; i < 8; i++)
+                //{
+                //    for(int j = 12; j < 15; j++)
+                //    {
+                //        isTestDataFetch[1, i, j] = true;
+                //    }
+                //}
+
                 for (int i = 0; i < 2; i++)
                 {
                     for (int j = 0; j < 8; j++)
@@ -537,6 +640,7 @@ public class BlockController : MonoBehaviour
                 {
                     updateBlock(testingRow, testingCol, Color.gray, "");
                     transform.GetChild(0).gameObject.GetComponent<Arduino>().arduinoSerial.Write("1");
+                    updateTestBoard();
 
                     //Calculate test data
                     for (int i = 0; i < 8; i++)
@@ -578,7 +682,7 @@ public class BlockController : MonoBehaviour
                     //Detect finger mistake
                     if (touchedTestRowBlock[7] != testingRow || touchedTestColBlock[7] != testingCol || touchedTestRowBlock[6] != testingRow || touchedTestColBlock[6] != testingCol)
                     {
-                        updateBlock(testingRow, blockSeriesCol, Color.gray, "");
+                        updateBlock(testingRow, blockSeriesCol, Color.gray, "ccc");
                         delayCount = 0;
                         testState = 4;
                         gameObject.GetComponent<AudioSource>().clip = audios[3];
@@ -587,7 +691,7 @@ public class BlockController : MonoBehaviour
                     }
                     else
                     {
-                        updateBlock(testingRow, blockSeriesCol, Color.white, "");
+                        updateBlock(testingRow, blockSeriesCol, Color.white, "ccc");
                     }
                     //Test result & record correct times
                     for (int i = 0; i < 8; i++)
@@ -635,6 +739,7 @@ public class BlockController : MonoBehaviour
                         str = str + "\r\n";
                         File.AppendAllText("TestData/sum.csv", str);
                     }
+                    else;
 
                     //Write data
                     if(testTimes >= 1 && testTimes <= testMaxTimes)
@@ -682,68 +787,8 @@ public class BlockController : MonoBehaviour
                         gameObject.GetComponent<AudioSource>().clip = audios[2];
                         gameObject.GetComponent<AudioSource>().Play();
                         testTimes = 0;
-                        if (touchXMode)
-                        {
-                            //Auto change block -- X
-                            if (testingRow == 6 && testingCol == 8)
-                            {
-                                testingRow = 8;
-                                testingCol = 6;
-                            }
-                            else if (testingCol == 14 && testingRow == 14)
-                            {
-                                testingRow = 0;
-                            }
-                            else if (testingCol < blockSeriesCol - 1 && testingRow == testingCol)
-                            {
-                                testingRow++;
-                                testingCol++;
-                            }
-                            else if (testingCol > 0)
-                            {
-                                testingRow++;
-                                testingCol--;
-                            }
-                        }
-                        else if (touchXComplementMode)
-                        {
-                            //Auto change block-- X complement
-                            if (testingCol < blockSeriesCol - 1)
-                            {
-                                testingCol++;
-                            }
-                            else if (testingRow < blockSeriesRow - 1)
-                            {
-                                testingCol = 0;
-                                testingRow++;
-                            }
 
-                            if(testingCol == testingRow || (testingCol + testingRow) == 14)
-                            {
-                                if (testingCol < blockSeriesCol - 1)
-                                {
-                                    testingCol++;
-                                }
-                                else if (testingRow < blockSeriesRow - 1)
-                                {
-                                    testingCol = 0;
-                                    testingRow++;
-                                }
-                            }
-                        }
-                        else
-                        {
-                            //Auto change block-- Regular
-                            if (testingCol < blockSeriesCol - 1)
-                            {
-                                testingCol++;
-                            }
-                            else if (testingRow < blockSeriesRow - 1)
-                            {
-                                testingCol = 0;
-                                testingRow++;
-                            }
-                        }
+                        nextTestingBlock();
                     }
 
                     delayCount = 0;
@@ -771,6 +816,8 @@ public class BlockController : MonoBehaviour
                 }
                 if(hasHighData == false)
                 {
+                    gameObject.GetComponent<AudioSource>().clip = audios[5];
+                    gameObject.GetComponent<AudioSource>().Play();
                     delayCount = 0;
                     testState = 1;
                 }
@@ -854,7 +901,7 @@ public class BlockController : MonoBehaviour
                     {
                         isTestDataFetch[RC, sampleTimes, clipStart + i] = true;
                     }
-                    catch (Exception)
+                    catch (Exception e)
                     {
                         Debug.Log("aaaa: " + sampleTimes.ToString() + "bbbb: " + (clipStart + i).ToString());
                     }
@@ -872,7 +919,7 @@ public class BlockController : MonoBehaviour
                         {
                             isTestDataFetch[RC, sampleTimes, clipStart + i * 6 + j] = true;
                         }
-                        catch (Exception)
+                        catch (Exception e)
                         {
                             Debug.Log("cccc: " + sampleTimes.ToString() + "dddd: " + (clipStart + i * 6 + j).ToString());
                         }
@@ -902,6 +949,166 @@ public class BlockController : MonoBehaviour
             while (touchShow.Count > 0)
             {
                 arduinoData[i] = touchShow.Pop();
+            }
+        }
+
+        if(testVersion && testState == 3)
+        {
+            for (int i = 0; i < arduinoData.Length; i++)
+            {
+                fetchTestArduinoData(i);
+            }
+        }
+    }
+
+    public void nextTestingBlock()
+    {
+        if (touchXMode)
+        {
+            //Auto change block -- X
+            if (testingRow == 6 && testingCol == 8)
+            {
+                testingRow = 8;
+                testingCol = 6;
+            }
+            else if (testingCol == 14 && testingRow == 14)
+            {
+                testingRow = 0;
+            }
+            else if (testingCol < blockSeriesCol - 1 && testingRow == testingCol)
+            {
+                testingRow++;
+                testingCol++;
+            }
+            else if (testingCol > 0)
+            {
+                testingRow++;
+                testingCol--;
+            }
+        }
+        else if (touchXComplementMode)
+        {
+            //Auto change block-- X complement
+            if (testingCol < blockSeriesCol - 1)
+            {
+                testingCol++;
+            }
+            else if (testingRow < blockSeriesRow - 1)
+            {
+                testingCol = 0;
+                testingRow++;
+            }
+
+            if (testingCol == testingRow || (testingCol + testingRow) == 14)
+            {
+                if (testingCol < blockSeriesCol - 1)
+                {
+                    testingCol++;
+                }
+                else if (testingRow < blockSeriesRow - 1)
+                {
+                    testingCol = 0;
+                    testingRow++;
+                }
+            }
+        }
+        else if (Layer0ComplementMode)
+        {
+            if (testingRow == 5 && testingCol == 3)
+            {
+                testingRow = 12;
+                testingCol = 4;
+            }
+            else if (testingRow == 12 && testingCol == 4)
+            {
+                testingRow = 13;
+            }
+            else if (testingRow == 13 && testingCol == 4)
+            {
+                testingRow = 14;
+            }
+            else if (testingRow == 14 && testingCol == 4)
+            {
+                testingRow = 13;
+                testingCol = 2;
+            }
+            else if (testingRow == 13 && testingCol == 2)
+            {
+                testingRow = 5;
+                testingCol = 4;
+            }
+            else if (testingRow == 5 && testingCol == 4)
+            {
+                testingRow = 7;
+                testingCol = 5;
+            }
+            else if (testingRow == 7 && testingCol == 5)
+            {
+                testingRow = 12;
+                testingCol = 13;
+            }
+            else if (testingRow == 12 && testingCol == 13)
+            {
+                testingRow = 11;
+                testingCol = 0;
+            }
+            else if (testingRow == 11 && testingCol == 0)
+            {
+                testingRow = 12;
+                testingCol = 14;
+            }
+            else
+            {
+                testingCol = 0;
+                testingRow = 0;
+            }
+        }
+        else if (Layer1ComplementMode)
+        {
+            if (testingRow == 5 && testingCol == 7)
+            {
+                testingCol = 0;
+                testingRow = 0;
+            }
+            else
+            {
+                testingCol = 5;
+                testingRow = 7;
+            }
+        }
+        else if (Layer2ComplementMode)
+        {
+            if (testingRow == 4 && testingCol == 11)
+            {
+                testingRow = 14;
+                testingCol = 5;
+            }
+            else if (testingRow == 14 && testingCol == 11)
+            {
+                testingRow = 0;
+                testingCol = 0;
+            }
+            else if (testingCol < blockSeriesCol - 1)
+            {
+                testingCol++;
+            }
+            else if (testingRow < blockSeriesRow - 1)
+            {
+                testingCol = 0;
+                testingRow++;
+            }
+        }
+        else
+        {
+            //Auto change block-- Regular
+            if (testingCol < blockSeriesCol - 1)
+            {
+                testingCol++;
+            }
+            else if (testingRow < blockSeriesRow - 1)
+            {
+                testingCol = 0;
+                testingRow++;
             }
         }
     }

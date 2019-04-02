@@ -328,43 +328,50 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2c44ea88ef2854240a327026dd9b5a3f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  parentCanvas: {fileID: 1683220790}
+  parentCanvas: {fileID: 2121107116}
   blockPrefeb: {fileID: 1312044239223880, guid: c81ad9bfa6c8c0743b3d2e45ebb0c2c1,
     type: 3}
   showOnBoard: 0
-  testVersion: 0
-  baseLineVersion: 0
+  boardRotate: 0
+  boardMirror: 0
+  chartBarSize: 7500
+  blockSize: 30
+  threshold: 8000
+  sampleTimes: 6
+  isBaseline: 1
   blockSeriesRow: 15
   blockSeriesCol: 15
-  blockSize: 30
   touchedColBlock: -1
   touchedRowBlock: -1
-  threshold: 5000
   arduinoData:
   - 
   - 
   - 
   - 
-  chartBarSize: 7500
-  testTimes: 0
+  testVersion: 0
+  testSampleTimes: 0
   testingRow: 5
   testingCol: 9
+  testTimes: 0
   testMaxTimes: 100
   touchXMode: 1
   touchXComplementMode: 0
-  testCorrectTimes: 
-  testThresholdBase: 0
+  Layer2ComplementMode: 0
+  Layer1ComplementMode: 0
+  Layer0ComplementMode: 0
   greenDelayTimes: 0
   yellowDelayTimes: 0
-  touchedTestRowBlock: 
-  touchedTestColBlock: 
-  isTestCorrect: 
   audios:
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
+  testCorrectTimes: 
+  touchedTestRowBlock: 
+  touchedTestColBlock: 
+  isTestCorrect: 
+  testThresholdBase: 0
 --- !u!4 &397615619
 Transform:
   m_ObjectHideFlags: 0
@@ -1018,7 +1025,8 @@ RectTransform:
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 0, y: 0, z: 0}
-  m_Children: []
+  m_Children:
+  - {fileID: 2121107117}
   m_Father: {fileID: 0}
   m_RootOrder: 11
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -1239,6 +1247,41 @@ Transform:
     type: 3}
   m_PrefabInstance: {fileID: 1793345082}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &2121107116
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2121107117}
+  m_Layer: 5
+  m_Name: Blocks
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &2121107117
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2121107116}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 1683220794}
+  m_RootOrder: 0
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 100, y: 100}
+  m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &745744262037109416 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 2844501903221151843, guid: d3aa317e7d675a5498aa54ba844c2d6e,

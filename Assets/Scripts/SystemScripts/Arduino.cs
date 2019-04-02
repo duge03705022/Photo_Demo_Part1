@@ -15,10 +15,21 @@ public class Arduino : MonoBehaviour {
 	public int baudRate;
 	public SerialPort arduinoSerial;
 	public string[] a;
-	public int sensor;
-    public int count;
+    public bool isController;
+    [Tooltip("0 for normal, 1 for testing")]public int mode;
+    public int rC;
+    public int jumpType;
+    public int clipStart;
+    public int clipNum;
+    public int sampleTimes;
+    public int testSampleTimes;
+    public bool isBaseline;
 
-	void Start () {
+    private int count;
+
+    private bool arduinoReady;
+
+    void Start () {
 		// Open Serial port
 		arduinoSerial = new SerialPort (portName, baudRate);
 		// Set buffersize so read from Serial would be normal
@@ -32,32 +43,38 @@ public class Arduino : MonoBehaviour {
 		arduinoSerial.RtsEnable = true;
 		arduinoSerial.Open ();
         count = 0;
+        arduinoReady = false;
     }
 
 	void Update() {
-        if (portName=="COM12")
+        if (isController)
         {
             count++;
             if (count == 10)
             {
                 arduinoSerial.Write("6");
             }
-            else if (count % 200 == 0)
-            {
-                arduinoSerial.Write("1");
-            }
-            else if (count % 200 == 100)
-            {
-                arduinoSerial.Write("2");
-            }
-            else if (count > 11)
-            {
-                count--;
-            }
         }
         else
         {
-            ReadFromArduino();
+            if (!arduinoReady)
+            {
+                string str = rC.ToString() + jumpType.ToString() + clipStart.ToString() + clipNum.ToString() + mode.ToString() + sampleTimes.ToString() + testSampleTimes.ToString();
+                if (isBaseline)
+                {
+                    str = str + "1";
+                }
+                else
+                {
+                    str = str + "0";
+                }
+                arduinoSerial.WriteLine(str);
+                arduinoReady = true;
+            }
+            else
+            {
+                ReadFromArduino();
+            }
         }
     }
 
@@ -72,7 +89,7 @@ public class Arduino : MonoBehaviour {
                 touchShowID.Push(str);
             }
         }
-        catch (TimeoutException)
+        catch (TimeoutException e)
         {
         }
     }
